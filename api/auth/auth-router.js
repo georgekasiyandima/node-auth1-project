@@ -41,7 +41,7 @@ const router = express.Router();
         const { username, password } = req.body;
         const hash = bcrypt.hashSync(password, 10);
         const newUser = { username, password: hash };
-        const [user] = await Users.add(newUser); // Use array destructuring to get the first element of the returned array
+        const [user] = await User.add(newUser); // Use array destructuring to get the first element of the returned array
         if (user) {
           res.status(200).json({ user_id: user.id, username: user.username });
         } else {
