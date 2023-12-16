@@ -6,7 +6,7 @@
     "message": "You shall not pass!"
   }
 */
-const Users = require("../users/users-model");
+const User = require("../users/users-model");
 
 async function restricted(req, res, next) {
   try {
@@ -29,16 +29,18 @@ async function restricted(req, res, next) {
 */
 async function checkUsernameFree(req, res, next) {
   try {
-    const { username } = req.body;
-    const user = await Users.findBy({ username });
-    if (user.length > 0) {
-      return res.status(422).json({ message: "Username is already taken" });
+    const users = await User.findBy({ username: req.body.username });
+    if (!users.length) {
+      next()
     }
-    next();
-  } catch (err) {
-    next(err);
+    else {
+      next({ "message": "Username taken"})
+     }
+    }catch (error) {
+      next(error);
+    }
   }
-}
+
 
 /*
   If the username in req.body does NOT exist in the database
@@ -51,7 +53,7 @@ async function checkUsernameFree(req, res, next) {
 async function checkUsernameExists(req, res, next) {
   try {
     const { username } = req.body;
-    const user = await Users.findBy({ username });
+    const user = await User.findBy({ username });
     if (user.lenth === 0) {
       return res.status(404).json({ message: "Invalid credentials" });
     }
