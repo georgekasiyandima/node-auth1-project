@@ -2,12 +2,11 @@
 // middleware functions from `auth-middleware.js`. You will need them here!
 const express = require("express");
 const bcrypt = require("bcrypt");
-const Users = require("../users/users-model");
+const User = require("../users/users-model");
 const {
   checkUsernameFree,
   checkUsernameExists,
   checkPasswordLength,
-  restricted,
 } = require("./auth-middleware");
 const router = express.Router();
 
