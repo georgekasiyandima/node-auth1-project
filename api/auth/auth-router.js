@@ -1,14 +1,15 @@
 // Require `checkUsernameFree`, `checkUsernameExists` and `checkPasswordLength`
 // middleware functions from `auth-middleware.js`. You will need them here!
-const express = require("express");
+const router = require("express").Router()
 const bcrypt = require("bcrypt");
 const User = require("../users/users-model");
 const {
   checkUsernameFree,
   checkUsernameExists,
   checkPasswordLength,
+  restricted,
 } = require("./auth-middleware");
-const router = express.Router();
+
 
 /**
   1 [POST] /api/auth/register { "username": "sue", "password": "1234" }
@@ -32,33 +33,18 @@ const router = express.Router();
     "message": "Password must be longer than 3 chars"
   }
  */
-  router.post(
-    "/register",
-    checkUsernameFree,
-    checkPasswordLength,
-    async (req, res, next) => {
-      try {
+  router.post("/register",checkUsernameFree,checkPasswordLength, (req, res, next) => {
+
         const { username, password } = req.body;
-        const hash = bcrypt.hashSync(password, 10);
-        const newUser = { username, password: hash };
-        const [user] = await User.add(newUser); // Use array destructuring to get the first element of the returned array
-        if (user) {
-          res.status(200).json({ user_id: user.id, username: user.username });
-        } else {
-          res.status(500).json({ message: "Failed to create user" });
-        }
-      } catch (err) {
-        if (err.code === "23505") {
-          // Unique constraint violation error code for PostgreSQL
-          res.status(422).json({ message: "Username already taken" });
-        } else if (err.message.includes("password too short")) {
-          res.status(422).json({ message: "Password must be longer than 3 characters" });
-        } else {
-          next(err);
-        }
-      }
-    }
-  );
+        const hash = bcrypt.hashSync(password, 8); //2 ^ 10
+
+        User.add({ username, password: hash })
+          .then(saved => {
+            res.status(201).json(saved)
+          })
+          .catch(next)
+        
+    });
 
 /**
   2 [POST] /api/auth/login { "username": "sue", "password": "1234" }
@@ -75,18 +61,18 @@ const router = express.Router();
     "message": "Invalid credentials"
   }
  */
-router.post("/login", checkUsernameExists, async (req, res, next) => {
-  try {
+router.post("/login", checkUsernameExists, (req, res, next) => {
+
     const { password } = req.body;
     if (bcrypt.compareSync(password, req.user.password)) {
       req.session.user = req.user;
       res.status(200).json({ message: `Welcome ${req.user.username}` });
+      //make it so the cookie is set on the client
+      //make it server stores a session with a session id
     } else {
-      res.status(401).json({ message: "Invalid credentials" });
+      next({ status: 401, message: 'Invalid credentials' })
     }
-  } catch (err) {
-    next(err);
-  }
+
 });
 
 /**
@@ -104,14 +90,18 @@ router.post("/login", checkUsernameExists, async (req, res, next) => {
     "message": "no session"
   }
  */
-router.get("/logout", restricted, (req, res) => {
-  req.session.destroy((err) => {
-    if (err) {
-      res.status(500).json({ message: "Unable to logout" });
+router.get("/logout", restricted, (req, res, next) => {
+    if (req.session.user) {
+     res.session.destroy(err => {
+      if (err) {
+        next(err)
+      } else {
+        res.json({ message: "Logged out" })
+      }
+     })
     } else {
-      res.status(200).json({ message: "Logged out" });
+      res.json({ message: 'no session' })
     }
-  });
 });
 
 // Don't forget to add the router to the `exports` object so it can be required in other modules
